@@ -17,12 +17,6 @@
       position: relative;
     }
 
-    /* ── 追加：キャンバスをビューポート全域にフィット ── */
-    canvas {
-      width: 100vw;   /* ← CSSで強制的に幅を画面いっぱいに */
-      height: 100vh;  /* ← CSSで強制的に高さを画面いっぱいに */
-    }
-
     /* ── 追加：オーバーレイも必ず画面全域に ── */
     #overlay,
     #startOverlay {
@@ -40,14 +34,15 @@
       position: relative;
     }
     canvas {
-      display: block;
-      margin: 0 auto;
-      background-color: #000;
-         /* タッチ操作でページがスクロールしないようにする */
-         touch-action: none;
-         /* 画面幅に合わせて表示を縮小したい場合（任意） */
-         max-width: 100%;
-         height: auto;
+      display:block;
+      margin:0;
+      padding:0;
+      background:#000;
+      touch-action:none;
+      width:100vw;
+      height:100vh;
+      position:absolute;
+      top:0; left:0;
     }
     /* ゲーム終了時オーバーレイ */
     #overlay {
@@ -121,9 +116,35 @@
   </div>
 
   <script>
+    
     // キャンバスとコンテキストの取得
-    const canvas = document.getElementById("gameCanvas");
-    const ctx = canvas.getContext("2d");
+  // ① ゲームの “元々の幅・高さ” を定義
+  const GAME_WIDTH  = 800;
+  const GAME_HEIGHT = 600;
+  const canvas = document.getElementById('gameCanvas');
+  const ctx    = canvas.getContext('2d');
+
+  // ② 内部解像度は固定
+  canvas.width  = GAME_WIDTH;
+  canvas.height = GAME_HEIGHT;
+
+  // ③ 画面サイズに合わせて「アスペクト比を保ったまま」CSS サイズを更新
+  function resizeCanvas() {
+    const scale = Math.min(
+      window.innerWidth  / GAME_WIDTH,
+      window.innerHeight / GAME_HEIGHT
+    );
+    canvas.style.width  = (GAME_WIDTH  * scale) + 'px';
+    canvas.style.height = (GAME_HEIGHT * scale) + 'px';
+    canvas.style.position = 'absolute';
+    // 画面中央に寄せる
+    canvas.style.left = ((window.innerWidth  - GAME_WIDTH  * scale) / 2) + 'px';
+    canvas.style.top  = ((window.innerHeight - GAME_HEIGHT * scale) / 2) + 'px';
+  }
+
+  // ④ 読み込み・リサイズ時に実行
+  window.addEventListener('load',   resizeCanvas);
+  window.addEventListener('resize', resizeCanvas);
 
     // ゲームパラメータ（難易度選択で設定）
     let basePaddleWidth;
