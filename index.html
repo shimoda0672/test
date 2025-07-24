@@ -232,11 +232,10 @@
             bricks[c][r].y = brickY;
             ctx.beginPath();
             ctx.rect(brickX, brickY, brickWidth, brickHeight);
-            if (b.special) {
-              // effect=="ball" は金色、そうでなければシアン
+            if (bricks[c][r].special) {
+              // 特殊ブロック色（オレンジ系）
               ctx.fillStyle = b.effect === "ball" ? "#FFD700" : "#00FFFF";
             } else {
-              // 通常ブロックは行番号ごとのパレット
               ctx.fillStyle = brickColors[r];
             }
             ctx.fill();
