@@ -2,9 +2,8 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-     <!-- スマホ／タブレットでのタッチ操作向けビューポート設定 -->
-   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-
+  <!-- スマホ／タブレットでのタッチ操作向けビューポート設定 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>ブロック崩しゲーム（初級・中級・上級・リトライ機能付き）</title>
   <style>
     html, body {
@@ -16,33 +15,30 @@
       background-color: #000;
       position: relative;
     }
-
     /* ── 追加：オーバーレイも必ず画面全域に ── */
     #overlay,
     #startOverlay {
       top: 0 !important;       /* ← 位置を画面左上に固定 */
       left: 0 !important;      /* ← 位置を画面左上に固定 */
       width: 100vw !important; /* ← 幅を画面いっぱいに */
-      height: 84vh !important;/* ← 高さを画面いっぱいに */
+      height: 84vh !important; /* ← 高さを画面いっぱいに */
       transform: none !important;
     }
-
-
     body {
       margin: 0;
       background-color: #000;
       position: relative;
     }
     canvas {
-      display:block;
-      margin:0;
-      padding:0;
-      background:#000;
-      touch-action:none;
-      width:100vw;
-      height:100vh;
-      position:absolute;
-      top:0; left:0;
+      display: block;
+      margin: 0;
+      padding: 0;
+      background: #000;
+      touch-action: none;
+      width: 100vw;
+      height: 100vh;
+      position: absolute;
+      top: 0; left: 0;
     }
     /* ゲーム終了時オーバーレイ */
     #overlay {
@@ -116,48 +112,51 @@
   </div>
 
   <script>
-    
-    // キャンバスとコンテキストの取得
-  // ① ゲームの “元々の幅・高さ” を定義
-  const GAME_WIDTH  = 640;
-  const GAME_HEIGHT = 304;
-  const canvas = document.getElementById('gameCanvas');
-  const ctx    = canvas.getContext('2d');
+    // ── 追加 ──
+    // パドルを上に移動するオフセット（px）
+    const paddleYOffset = 20;
+    // タッチ判定をパドルの上方向に拡張する範囲（px）
+    const touchRegionExtension = 30;
+    // ── 追加 ──
 
-  // ② 内部解像度は固定
-  canvas.width  = GAME_WIDTH;
-  canvas.height = GAME_HEIGHT;
+    // ゲームの “元々の幅・高さ” を定義
+    const GAME_WIDTH  = 640;
+    const GAME_HEIGHT = 304;
+    const canvas = document.getElementById('gameCanvas');
+    const ctx    = canvas.getContext('2d');
 
-  // ③ 画面サイズに合わせて「アスペクト比を保ったまま」CSS サイズを更新
-  function resizeCanvas() {
-    const scale = Math.min(
-      window.innerWidth  / GAME_WIDTH,
-      window.innerHeight / GAME_HEIGHT
-    );
-    canvas.style.width  = (GAME_WIDTH  * scale) + 'px';
-    canvas.style.height = (GAME_HEIGHT * scale) + 'px';
-    canvas.style.position = 'absolute';
-    // 画面中央に寄せる
-    canvas.style.left = ((window.innerWidth  - GAME_WIDTH  * scale) / 2) + 'px';
-    canvas.style.top  = ((window.innerHeight - GAME_HEIGHT * scale) / 2) + 'px';
-  }
+    // 内部解像度は固定
+    canvas.width  = GAME_WIDTH;
+    canvas.height = GAME_HEIGHT;
 
-  // ④ 読み込み・リサイズ時に実行
-  window.addEventListener('load',   resizeCanvas);
-  window.addEventListener('resize', resizeCanvas);
+    // 画面サイズに合わせて「アスペクト比を保ったまま」CSS サイズを更新
+    function resizeCanvas() {
+      const scale = Math.min(
+        window.innerWidth  / GAME_WIDTH,
+        window.innerHeight / GAME_HEIGHT
+      );
+      canvas.style.width  = (GAME_WIDTH  * scale) + 'px';
+      canvas.style.height = (GAME_HEIGHT * scale) + 'px';
+      canvas.style.position = 'absolute';
+      // 画面中央に寄せる
+      canvas.style.left = ((window.innerWidth  - GAME_WIDTH  * scale) / 2) + 'px';
+      canvas.style.top  = ((window.innerHeight - GAME_HEIGHT * scale) / 2) + 'px';
+    }
+    window.addEventListener('load',   resizeCanvas);
+    window.addEventListener('resize', resizeCanvas);
 
     // ゲームパラメータ（難易度選択で設定）
     let basePaddleWidth;
     let paddleWidth;
     let paddleHeight = 10;
     let paddleX;
+    let paddleY;                // ── 追加 ──
     let paddleSpeed;
     let ballInitialSpeed;
     let paddleExtended = false; // パドル延長効果中か
 
     const ballRadius = 10;
     let balls = [];
-    // ボール生成関数
     function createBall(x, y, speedX, speedY) {
       return { x: x, y: y, speedX: speedX, speedY: speedY, radius: ballRadius };
     }
@@ -172,7 +171,6 @@
     const brickHeight = 20;
     const brickColors = ["#FF5733", "#FFBD33", "#DBFF33", "#75FF33", "#33FF57"];
     let bricks = [];
-
     function initBricks() {
       bricks = [];
       for (let c = 0; c < brickColumnCount; c++) {
@@ -180,12 +178,9 @@
         for (let r = 0; r < brickRowCount; r++) {
           let isSpecial = false;
           let effect = null;
-          // 下から3行に対して30%の確率で特殊ブロック
-          if (r >= brickRowCount - 3) {
-            if (Math.random() < 0.3) {
-              isSpecial = true;
-              effect = Math.random() < 0.5 ? "ball" : "paddle";
-            }
+          if (r >= brickRowCount - 3 && Math.random() < 0.3) {
+            isSpecial = true;
+            effect = Math.random() < 0.5 ? "ball" : "paddle";
           }
           bricks[c][r] = { x: 0, y: 0, status: 1, special: isSpecial, effect: effect };
         }
@@ -198,74 +193,58 @@
     let leftPressed = false;
     document.addEventListener("keydown", keyDownHandler, false);
     document.addEventListener("keyup", keyUpHandler, false);
-
     function keyDownHandler(e) {
-      if (e.key === "Right" || e.key === "ArrowRight") {
-        rightPressed = true;
-      } else if (e.key === "Left" || e.key === "ArrowLeft") {
-        leftPressed = true;
-      }
+      if (e.key === "Right" || e.key === "ArrowRight") rightPressed = true;
+      else if (e.key === "Left" || e.key === "ArrowLeft") leftPressed = true;
     }
     function keyUpHandler(e) {
-      if (e.key === "Right" || e.key === "ArrowRight") {
-        rightPressed = false;
-      } else if (e.key === "Left" || e.key === "ArrowLeft") {
-        leftPressed = false;
-      }
+      if (e.key === "Right" || e.key === "ArrowRight") rightPressed = false;
+      else if (e.key === "Left" || e.key === "ArrowLeft") leftPressed = false;
     }
 
- // --- ここから入力イベントの処理を追加 ---
- // ポインタ操作（タッチ／ペン／マウスを統合）
- canvas.addEventListener("pointermove", pointerMoveHandler, false);
- 
- // pointerdown でキャプチャを取って確実に pointermove を受け取る
- canvas.addEventListener("pointerdown", (e) => {
-   canvas.setPointerCapture(e.pointerId);
-   pointerMoveHandler(e);
- }, false);
- canvas.addEventListener("pointerup", (e) => {
-   canvas.releasePointerCapture(e.pointerId);
- }, false);
+    // ポインタ操作（タッチ／ペン／マウスを統合）
+    canvas.addEventListener("pointermove", pointerMoveHandler, false);
+    canvas.addEventListener("pointerdown", (e) => {
+      canvas.setPointerCapture(e.pointerId);
+      pointerMoveHandler(e);
+    }, false);
+    canvas.addEventListener("pointerup", (e) => {
+      canvas.releasePointerCapture(e.pointerId);
+    }, false);
 
- // --- ポインタ（タッチ含む）移動の処理 ---
- function pointerMoveHandler(e) {
-   /* タッチの場合はデフォルト（スクロール等）を抑制 */
-   if (e.pointerType === "touch") {
-     e.preventDefault();
-   }
-   const rect = canvas.getBoundingClientRect();
-   // Canvas が CSS で縮小／拡大されている場合の補正
-   const scaleX = canvas.width / rect.width;
-   const relativeX = (e.clientX - rect.left) * scaleX;
-   if (relativeX > 0 && relativeX < canvas.width) {
-     let newPaddleX = relativeX - paddleWidth / 2;
-     if (newPaddleX < 0) {
-       newPaddleX = 0;
-     } else if (newPaddleX + paddleWidth > canvas.width) {
-       newPaddleX = canvas.width - paddleWidth;
-     }
-     paddleX = newPaddleX;
-   }
- }
- 
- /* もとの touchMoveHandler は不要になったら削除しても構いません */
+    function pointerMoveHandler(e) {
+      if (e.pointerType === "touch") e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width  / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const relativeX = (e.clientX - rect.left) * scaleX;
+      const relativeY = (e.clientY - rect.top)  * scaleY;
+
+      // ── 追加：タッチ有効領域を拡張 ──
+      if (relativeY < paddleY - touchRegionExtension || relativeY > paddleY + paddleHeight) {
+        return;
+      }
+
+      let newPaddleX = relativeX - paddleWidth / 2;
+      if (newPaddleX < 0) newPaddleX = 0;
+      else if (newPaddleX + paddleWidth > canvas.width) newPaddleX = canvas.width - paddleWidth;
+      paddleX = newPaddleX;
+    }
 
     // 描画関数
     function drawBricks() {
       for (let c = 0; c < brickColumnCount; c++) {
         for (let r = 0; r < brickRowCount; r++) {
-          if (bricks[c][r].status === 1) {
-            const brickX = c * (brickWidth + brickPadding) + brickOffsetLeft;
-            const brickY = r * (brickHeight + brickPadding) + brickOffsetTop;
-            bricks[c][r].x = brickX;
-            bricks[c][r].y = brickY;
+          const b = bricks[c][r];
+          if (b.status === 1) {
+            const bx = c * (brickWidth + brickPadding) + brickOffsetLeft;
+            const by = r * (brickHeight + brickPadding) + brickOffsetTop;
+            b.x = bx; b.y = by;
             ctx.beginPath();
-            ctx.rect(brickX, brickY, brickWidth, brickHeight);
-            if (bricks[c][r].special) {
-              ctx.fillStyle = bricks[c][r].effect === "ball" ? "#FFD700" : "#00FFFF";
-            } else {
-              ctx.fillStyle = brickColors[r];
-            }
+            ctx.rect(bx, by, brickWidth, brickHeight);
+            ctx.fillStyle = b.special
+              ? (b.effect === "ball" ? "#FFD700" : "#00FFFF")
+              : brickColors[r];
             ctx.fill();
             ctx.closePath();
           }
@@ -274,7 +253,7 @@
     }
     function drawPaddle() {
       ctx.beginPath();
-      ctx.rect(paddleX, canvas.height - paddleHeight, paddleWidth, paddleHeight);
+      ctx.rect(paddleX, paddleY, paddleWidth, paddleHeight);
       ctx.fillStyle = "#fff";
       ctx.fill();
       ctx.closePath();
@@ -289,48 +268,46 @@
       });
     }
 
-    // 衝突判定：各ボールとブロックの当たり判定
+    // 衝突判定：各ボールとブロック／パドルの当たり判定
     function collisionDetection(ball) {
+      // ブロック判定
       for (let c = 0; c < brickColumnCount; c++) {
         for (let r = 0; r < brickRowCount; r++) {
           const brick = bricks[c][r];
-          if (brick.status === 1) {
-            if (
+          if (brick.status === 1 &&
               ball.x > brick.x &&
               ball.x < brick.x + brickWidth &&
               ball.y > brick.y &&
-              ball.y < brick.y + brickHeight
-            ) {
-              ball.speedY = -ball.speedY;
-              brick.status = 0;
-              if (brick.special) {
-                if (brick.effect === "ball") {
-                  // 新規ボール追加効果
-                  const newBallX = brick.x + brickWidth / 2;
-                  const newBallY = brick.y + brickHeight / 2;
-                  const newSpeedX = ballInitialSpeed * (Math.random() < 0.5 ? 1 : -1);
-                  const newSpeedY = -ballInitialSpeed;
-                  balls.push(createBall(newBallX, newBallY, newSpeedX, newSpeedY));
-                } else if (brick.effect === "paddle") {
-                  // パドル延長効果：通常時の2倍の幅に6秒間変更
-                  if (!paddleExtended) {
-                    paddleExtended = true;
-                    paddleWidth = basePaddleWidth * 2;
-                    if (paddleX + paddleWidth > canvas.width) {
-                      paddleX = canvas.width - paddleWidth;
-                    }
-                    setTimeout(function() {
-                      paddleWidth = basePaddleWidth;
-                      paddleExtended = false;
-                      if (paddleX + paddleWidth > canvas.width) {
-                        paddleX = canvas.width - paddleWidth;
-                      }
-                    }, 6000);
-                  }
-                }
+              ball.y < brick.y + brickHeight) {
+            ball.speedY = -ball.speedY;
+            brick.status = 0;
+            if (brick.special) {
+              if (brick.effect === "ball") {
+                const nx = brick.x + brickWidth/2;
+                const ny = brick.y + brickHeight/2;
+                const sx = ballInitialSpeed * (Math.random()<0.5 ? 1 : -1);
+                balls.push(createBall(nx, ny, sx, -ballInitialSpeed));
+              } else if (brick.effect === "paddle" && !paddleExtended) {
+                paddleExtended = true;
+                paddleWidth = basePaddleWidth * 2;
+                if (paddleX + paddleWidth > canvas.width)
+                  paddleX = canvas.width - paddleWidth;
+                setTimeout(() => {
+                  paddleWidth = basePaddleWidth;
+                  paddleExtended = false;
+                  if (paddleX + paddleWidth > canvas.width)
+                    paddleX = canvas.width - paddleWidth;
+                }, 6000);
               }
             }
           }
+        }
+      }
+      // パドル判定
+      if (ball.y + ball.speedY > paddleY - ball.radius) {
+        if (ball.x >= paddleX && ball.x <= paddleX + paddleWidth) {
+          ball.speedY = -ball.speedY;
+          ball.y = paddleY - ball.radius;
         }
       }
     }
@@ -338,11 +315,9 @@
     // オーバーレイ表示（ゲームオーバー／ゲームクリア時）
     function showOverlay(message) {
       const overlay = document.getElementById("overlay");
-      const overlayMessage = document.getElementById("overlayMessage");
-      overlayMessage.textContent = message;
+      document.getElementById("overlayMessage").textContent = message;
       overlay.style.display = "flex";
     }
-    // リトライ（ページリロード）
     function restartGame() {
       location.reload();
     }
@@ -354,72 +329,60 @@
       drawPaddle();
       drawBalls();
 
-      // 各ボールの更新
       for (let i = balls.length - 1; i >= 0; i--) {
         const ball = balls[i];
         collisionDetection(ball);
 
-        // 壁との衝突（左右）
+        // 壁との衝突
         if (ball.x + ball.speedX > canvas.width - ball.radius || ball.x + ball.speedX < ball.radius) {
           ball.speedX = -ball.speedX;
         }
-        // 天井との衝突
         if (ball.y + ball.speedY < ball.radius) {
           ball.speedY = -ball.speedY;
         }
-        // 下部（パドルまたはゲームオーバー）の判定
-        if (ball.y + ball.speedY > canvas.height - ball.radius) {
-          // パドルと衝突したか判定
-          if (ball.x >= paddleX && ball.x <= paddleX + paddleWidth) {
-            ball.speedY = -ball.speedY;
-          } else {
-            // ボール消去
-            balls.splice(i, 1);
-            continue;
-          }
+        // 下端を超えたらボール削除
+        if (ball.y + ball.speedY > canvas.height + ball.radius) {
+          balls.splice(i, 1);
+          continue;
         }
+
         ball.x += ball.speedX;
         ball.y += ball.speedY;
       }
 
-      // ゲームクリア判定：全ブロックが破壊された場合
+      // ゲームクリア判定
       let bricksRemaining = 0;
-      for (let c = 0; c < brickColumnCount; c++) {
-        for (let r = 0; r < brickRowCount; r++) {
-          if (bricks[c][r].status === 1) {
-            bricksRemaining++;
-          }
-        }
-      }
+      for (let c = 0; c < brickColumnCount; c++)
+        for (let r = 0; r < brickRowCount; r++)
+          if (bricks[c][r].status === 1) bricksRemaining++;
       if (bricksRemaining === 0) {
         showOverlay("ゲームクリア！");
         return;
       }
-      // ゲームオーバー判定：すべてのボールがなくなった場合
+      // ゲームオーバー判定
       if (balls.length === 0) {
         showOverlay("ゲームオーバー！");
         return;
       }
 
-      // パドルの左右移動（キー操作分）
+      // キー操作によるパドル移動
       if (rightPressed && paddleX < canvas.width - paddleWidth) {
         paddleX += paddleSpeed;
       } else if (leftPressed && paddleX > 0) {
         paddleX -= paddleSpeed;
       }
-
       requestAnimationFrame(draw);
     }
 
-    // 難易度選択時の初期設定（初級、中級、上級）
+    // 難易度選択時の初期設定
     function setDifficulty(diff) {
       if (diff === "advanced") {
         basePaddleWidth = 80;
-        paddleSpeed = 6;  // 上級：パドル速度 6
+        paddleSpeed = 6;
         ballInitialSpeed = 7;
       } else if (diff === "intermediate") {
         basePaddleWidth = 100;
-        paddleSpeed = 6;  // 中級：パドル速度 6
+        paddleSpeed = 6;
         ballInitialSpeed = 5;
       } else if (diff === "beginner") {
         basePaddleWidth = 120;
@@ -428,12 +391,13 @@
       }
       paddleWidth = basePaddleWidth;
       paddleX = (canvas.width - paddleWidth) / 2;
+      // ── 追加：パドル表示Y座標設定 ──
+      paddleY = canvas.height - paddleHeight - paddleYOffset;
+
       // 初期ボール生成
       balls = [];
       balls.push(createBall(canvas.width / 2, canvas.height - 30, ballInitialSpeed, -ballInitialSpeed));
-      // ブロックを初期化
       initBricks();
-      // 難易度選択オーバーレイを非表示にしてゲーム開始
       document.getElementById("startOverlay").style.display = "none";
       draw();
     }
